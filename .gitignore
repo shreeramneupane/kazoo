@@ -51,3 +51,5 @@ compile_commands.json
 /doc/kazoocon/*.pdf
 /doc/kazoocon/*.tex
 *.coverdata
+
+core/kazoo_tasks/test/*.csv
