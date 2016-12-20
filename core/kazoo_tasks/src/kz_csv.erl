@@ -117,6 +117,7 @@ take_row(CSV=?NE_BINARY) ->
 split_row(Row=?NE_BINARY) ->
     split_fields(Row, []).
 
+-spec split_fields(binary(), [binary()]) -> [binary()].
 split_fields(<<>>, Fields) ->
     lists:reverse(Fields);
 split_fields(<<$\n, _/binary>>, Fields) ->
@@ -128,6 +129,10 @@ split_fields(<<$', Row/binary>>, Fields) ->
 split_fields(Row, Fields) ->
     split_field(Row, $,, Fields).
 
+-type field_terminator() :: 34 | 39 | 44. %% $" | $' | $,
+
+-spec split_field(binary(), field_terminator(), [binary()]) -> [binary()].
+-spec split_field(binary(), field_terminator(), [binary()], [byte()]) -> [binary()].
 split_field(Row, EndChar, Fields) ->
     split_field(Row, EndChar, Fields, []).
 
@@ -148,7 +153,7 @@ split_field(<<EndChar>>, EndChar, Fields, FieldSoFar) ->
 split_field(<<Char:1/binary>>, _EndChar, Fields, FieldSoFar) ->
     Field = iolist_to_binary(lists:reverse([Char | FieldSoFar])),
     split_fields(<<>>, [Field | Fields]);
-split_field(<<Char:1/binary, Row/binary>>, EndChar, Fields, FieldSoFar) ->
+split_field(<<Char:8, Row/binary>>, EndChar, Fields, FieldSoFar) ->
     split_field(Row, EndChar, Fields, [Char | FieldSoFar]).
 
 %%--------------------------------------------------------------------
