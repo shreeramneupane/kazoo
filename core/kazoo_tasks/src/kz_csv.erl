@@ -131,6 +131,8 @@ split_fields(Row, Fields) ->
 split_field(Row, EndChar, Fields) ->
     split_field(Row, EndChar, Fields, []).
 
+split_field(<<$,>>, $,, Fields, FieldSoFar) ->
+    split_fields(<<>>, [<<>>, iolist_to_binary(lists:reverse(FieldSoFar)) | Fields]);
 split_field(<<$,, Row/binary>>, $,, Fields, FieldSoFar) ->
     split_fields(Row, [iolist_to_binary(lists:reverse(FieldSoFar)) | Fields]);
 split_field(<<EndChar, $,, Row/binary>>, EndChar, Fields, FieldSoFar) ->
@@ -138,11 +140,14 @@ split_field(<<EndChar, $,, Row/binary>>, EndChar, Fields, FieldSoFar) ->
     split_fields(Row, [Field | Fields]);
 
 split_field(<<>>, $,, Fields, FieldSoFar) ->
-    split_fields(<<>>, [iolist_to_binary(lists:reverse(FieldSoFar)) | Fields]);
+    split_fields(<<>>, [<<>>, iolist_to_binary(lists:reverse(FieldSoFar)) | Fields]);
 split_field(<<EndChar>>, EndChar, Fields, FieldSoFar) ->
     Field = iolist_to_binary([EndChar | lists:reverse([EndChar | FieldSoFar])]),
     split_fields(<<>>, [Field | Fields]);
 
+split_field(<<Char:1/binary>>, _EndChar, Fields, FieldSoFar) ->
+    Field = iolist_to_binary(lists:reverse([Char | FieldSoFar])),
+    split_fields(<<>>, [Field | Fields]);
 split_field(<<Char:1/binary, Row/binary>>, EndChar, Fields, FieldSoFar) ->
     split_field(Row, EndChar, Fields, [Char | FieldSoFar]).
 
@@ -328,7 +333,7 @@ json_to_iolist_test_() ->
     ,?_assertEqual(<<"account_id,e164,cnam.outbound\n009afc511c97b2ae693c6cc4920988e8,+14157215234,me\n,+14157215235,\n">>, json_to_iolist(Records3))
     ].
 
-split_test() ->
+split_test_() ->
     Rows = [{<<"\"0.1651\",\"ZAMBIA, MOBILE\",\"ZAMBIA, MOBILE-26094\",\"ZAMBIA, MOBILE\",\"26094\",\"0\"">>
             ,[<<"\"0.1651\"">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"ZAMBIA, MOBILE-26094\"">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"26094\"">>, <<"\"0\"">>]
             }
@@ -338,7 +343,13 @@ split_test() ->
            ,{<<"0.1651,\"ZAMBIA, MOBILE\",\"ZAMBIA, MOBILE-26094\",\"ZAMBIA, MOBILE\",\"26094\",\"0\"">>
             ,[<<"0.1651">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"ZAMBIA, MOBILE-26094\"">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"26094\"">>, <<"\"0\"">>]
             }
+           ,{<<",">>, [<<>>, <<>>]}
+           ,{<<"test,">>,[<<"test">>,<<>>]}
+           ,{<<"test,,">>,[<<"test">>,<<>>,<<>>]}
+           ,{<<"test,,foo bar">>,[<<"test">>,<<>>,<<"foo bar">>]}
            ],
-    [?assertEqual(Split, split_row(Row)) || {Row, Split} <- Rows].
+    [{binary_to_list(Row), ?_assertEqual(Split, split_row(Row))}
+     || {Row, Split} <- Rows
+    ].
 
 -endif.
