@@ -299,8 +299,8 @@ generate_row([?VARS], Props) ->
              ,{<<"routes">>, [<<"^\\+?", Prefix/binary, ".+$">>]}
               %% override account-ID from task props
              ,{<<"account_id">>, props:get_value('account_id', Props)}
-                                ,{<<"pvt_auth_account_id">>, props:get_value('auth_account_id', Props)}
-                                ],
+             ,{<<"pvt_auth_account_id">>, props:get_value('auth_account_id', Props)}
+             ],
     kz_json:from_list(props:filter_undefined(props:set_values(Update, List))).
 
 -spec save_rates(ne_binary(), kz_json:objects()) -> 'ok'.
