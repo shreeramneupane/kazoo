@@ -38,12 +38,27 @@ CSV files for all actions use the same list of fields. Names of fields match the
 Import rates from CSV.
 `prefix` and `rate_cost` are mandatory fields.
 
+Create the task:
 ```shell
 curl -v -X PUT \
 -H "X-Auth-Header: {AUTH_TOKEN}" \
 -H "Content-type: text/csv" \
 --data-binary @rates.csv \
 'http://{SERVER}:8000/v2/tasks?category=rates&action=import'
+```
+
+Start the task:
+```shell
+curl -v -X PATCH \
+-H "X-Auth-Header: {AUTH_TOKEN}" \
+'http://{SERVER}:8000/v2/tasks/{TASK_ID}'
+```
+
+Query the task's status:
+```shell
+curl -v -X GET \
+-H "X-Auth-Header: {AUTH_TOKEN}" \
+'http://{SERVER}:8000/v2/tasks/{TASK_ID}'
 ```
 
 ### Export
