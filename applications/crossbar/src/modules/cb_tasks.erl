@@ -265,7 +265,7 @@ put(Context) ->
     TotalRows = cb_context:fetch(Context, 'total_rows'),
     CSVName = cb_context:req_value(Context, ?RV_FILENAME),
     case kz_tasks:new(cb_context:auth_account_id(Context)
-                     ,cb_context:account_id(Context)
+                     ,task_account_id(Context)
                      ,Category
                      ,Action
                      ,TotalRows
@@ -282,6 +282,13 @@ put(Context) ->
         {'error', Reason} ->
             lager:debug("new ~s task ~s cannot be created: ~p", [Category, Action, Reason]),
             crossbar_util:response_400(<<"bad request">>, Reason, Context)
+    end.
+
+-spec task_account_id(cb_context:context()) -> api_ne_binary().
+task_account_id(Context) ->
+    case cb_context:account_id(Context) of
+        'undefined' -> cb_context:auth_account_id(Context);
+        AccountId -> AccountId
     end.
 
 %%--------------------------------------------------------------------
