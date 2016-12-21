@@ -306,7 +306,9 @@ generate_row([?VARS], Props) ->
 -spec save_rates(ne_binary(), kz_json:objects()) -> 'ok'.
 save_rates(Db, Docs) ->
     case kz_datamgr:save_docs(Db, Docs) of
-        {'ok', _Result} -> refresh_selectors_index(Db);
+        {'ok', _Result} ->
+            lager:debug("saved ~p docs to ~s", [length(Docs), Db]),
+            refresh_selectors_index(Db);
         {'error', 'not_found'} ->
             init_db(Db),
             save_rates(Db, Docs);
