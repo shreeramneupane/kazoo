@@ -60,7 +60,6 @@ throw_bad(Header, {-1,0}) ->
     case lists:all(fun is_binary/1, Header) of
         %% Strip header line from total rows count
         'true' ->
-            io:format("header: ~p~n", [length(Header)]),
             {length(Header), 0};
         'false' ->
             io:format("bad header: ~p~n", [Header]),
@@ -157,7 +156,6 @@ split_field(<<"\r\n", _/binary>>=Row, $,, Fields, FieldSoFar) ->
 split_field(<<"\r\r", _/binary>>=Row, $,, Fields, FieldSoFar) ->
     split_fields(Row, [iolist_to_binary(lists:reverse(FieldSoFar)) | Fields]);
 split_field(<<"\n", _/binary>>=Row, $,, Fields, FieldSoFar) ->
-
     split_fields(Row, [iolist_to_binary(lists:reverse(FieldSoFar)) | Fields]);
 split_field(<<"\r", _/binary>>=Row, $,, Fields, FieldSoFar) ->
     split_fields(Row, [iolist_to_binary(lists:reverse(FieldSoFar)) | Fields]);
@@ -165,13 +163,29 @@ split_field(<<"\r", _/binary>>=Row, $,, Fields, FieldSoFar) ->
 split_field(<<EndChar, EndChar, Row/binary>>, EndChar, Fields, FieldSoFar) ->
     split_field(Row, EndChar, Fields, [EndChar, EndChar | FieldSoFar]);
 split_field(<<EndChar, $,, Row/binary>>, EndChar, Fields, FieldSoFar) ->
-    Field = iolist_to_binary([EndChar | lists:reverse([EndChar | FieldSoFar])]),
+    Field = iolist_to_binary(lists:reverse(FieldSoFar)),
     split_fields(Row, [Field | Fields]);
+
+split_field(<<EndChar, "\r\n", Row/binary>>, EndChar, Fields, FieldSoFar) ->
+    Field = iolist_to_binary(lists:reverse(FieldSoFar)),
+    split_fields(<<"\r\n", Row/binary>>, [Field | Fields]);
+split_field(<<EndChar, "\n", Row/binary>>, EndChar, Fields, FieldSoFar) ->
+    Field = iolist_to_binary(lists:reverse(FieldSoFar)),
+    split_fields(<<"\n", Row/binary>>, [Field | Fields]);
+split_field(<<EndChar, "\r\r", Row/binary>>, EndChar, Fields, FieldSoFar) ->
+    Field = iolist_to_binary(lists:reverse(FieldSoFar)),
+    split_fields(<<"\r\r", Row/binary>>, [Field | Fields]);
+split_field(<<EndChar, "\r\n", Row/binary>>, EndChar, Fields, FieldSoFar) ->
+    Field = iolist_to_binary(lists:reverse(FieldSoFar)),
+    split_fields(<<"\r\n", Row/binary>>, [Field | Fields]);
+split_field(<<EndChar, "\r", Row/binary>>, EndChar, Fields, FieldSoFar) ->
+    Field = iolist_to_binary(lists:reverse(FieldSoFar)),
+    split_fields(<<"\r", Row/binary>>, [Field | Fields]);
 
 split_field(<<>>, $,, Fields, FieldSoFar) ->
     split_fields(<<>>, [<<>>, iolist_to_binary(lists:reverse(FieldSoFar)) | Fields]);
 split_field(<<EndChar>>, EndChar, Fields, FieldSoFar) ->
-    Field = iolist_to_binary([EndChar | lists:reverse([EndChar | FieldSoFar])]),
+    Field = iolist_to_binary(lists:reverse(FieldSoFar)),
     split_fields(<<>>, [Field | Fields]);
 
 split_field(<<Char:1/binary>>, _EndChar, Fields, FieldSoFar) ->
@@ -203,28 +217,39 @@ pad_row_to(_, Row) ->
 -spec associator(row(), row(), verifier()) -> fassoc().
 associator(CSVHeader, OrderedFields, Verifier) ->
     Max = length(OrderedFields),
-    Map = maps:from_list(
-            [{find_position(Header, OrderedFields, 1), I}
-             || {I,Header} <- lists:zip(lists:seq(1, length(CSVHeader)), CSVHeader)
-            ]),
-    fun (Row0) ->
-            Row = pad_row_to(Max, Row0),
+    MappedHeaders = map_header_to_ordered_fields(CSVHeader, OrderedFields),
+    fun(InputRow0) ->
+            InputRow = pad_row_to(Max, InputRow0),
             ReOrdered =
-                [ begin
-                      Cell = case maps:get(I, Map, 'undefined') of
-                                 'undefined' -> ?ZILCH;
-                                 J -> lists:nth(J, Row)
-                             end,
-                      Verifier(lists:nth(I, OrderedFields), Cell)
-                          andalso Cell
-                  end
-                  || I <- lists:seq(1, Max)
+                [maybe_include_cell(CellPosition, OrderedFields, Verifier, InputRow, MappedHeaders)
+                 || CellPosition <- lists:seq(1, Max)
                 ],
             case lists:any(fun is_boolean/1, ReOrdered) of
                 'false' -> {'true', ReOrdered};
                 'true' -> 'false'
             end
     end.
+
+-spec maybe_include_cell(pos_integer(), row(), verifier(), row(), map()) ->
+                                'false' | row().
+maybe_include_cell(CellPosition, OrderedFields, Verifier, InputRow, MappedHeaders) ->
+    Cell = find_cell_in_row(CellPosition, InputRow, MappedHeaders),
+    Verifier(lists:nth(CellPosition, OrderedFields), Cell)
+        andalso Cell.
+
+find_cell_in_row(OrderedPosition, InputRow, MappedHeaders) ->
+    case maps:get(OrderedPosition, MappedHeaders, 'undefined') of
+        'undefined' -> ?ZILCH;
+        CSVHeaderIndex -> lists:nth(CSVHeaderIndex, InputRow)
+    end.
+
+-spec map_header_to_ordered_fields(ne_binaries(), ne_binaries()) ->
+                                          map().
+map_header_to_ordered_fields(CSVHeader, OrderedFields) ->
+    maps:from_list(
+      [{find_ordered_position(Header, OrderedFields, 1), CSVHeaderIndex}
+       || {CSVHeaderIndex,Header} <- lists:zip(lists:seq(1, length(CSVHeader)), CSVHeader)
+      ]).
 
 %%--------------------------------------------------------------------
 %% @public
@@ -264,12 +289,12 @@ json_to_iolist(Records)
 %%%===================================================================
 
 %% @private
--spec find_position(A, [A], I) -> I when
-      A :: ne_binary(),
-      I :: pos_integer().
-find_position(Item, [Item|_], Pos) -> Pos;
-find_position(Item, [_|Items], N) ->
-    find_position(Item, Items, N+1).
+-spec find_ordered_position(ne_binary(), ne_binaries(), non_neg_integer()) ->
+                                   non_neg_integer().
+find_ordered_position(_Item, [], _Pos) -> 0;
+find_ordered_position(Item, [Item|_], Pos) -> Pos;
+find_ordered_position(Item, [_|Items], N) ->
+    find_ordered_position(Item, Items, N+1).
 
 %% @private
 -spec cell_to_binary(cell()) -> binary().
