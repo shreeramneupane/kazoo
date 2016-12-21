@@ -54,6 +54,7 @@ count_rows_test_() ->
     ,?_assertEqual(0, kz_csv:count_rows(<<"a,b,c\n1\n2\n3">>))
     ,?_assertEqual(1, kz_csv:count_rows(<<"a,b,c\n1,2,3">>))
     ,?_assertEqual(3, kz_csv:count_rows(<<"a,b,c\n1,2,3\r\n4,5,6\n7,8,9\n">>))
+    ,?_assertEqual(3, kz_csv:count_rows(<<"a,b,c\n1,2,3\r\n4,5,6\n\r7,8,9\r\r">>))
     ].
 
 row_to_iolist_test_() ->
@@ -85,13 +86,13 @@ json_to_iolist_test_() ->
 
 split_test_() ->
     Rows = [{<<"\"0.1651\",\"ZAMBIA, MOBILE\",\"ZAMBIA, MOBILE-26094\",\"ZAMBIA, MOBILE\",\"26094\",\"0\"">>
-            ,[<<"\"0.1651\"">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"ZAMBIA, MOBILE-26094\"">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"26094\"">>, <<"\"0\"">>]
+            ,[<<"0.1651">>, <<"ZAMBIA, MOBILE">>, <<"ZAMBIA, MOBILE-26094">>, <<"ZAMBIA, MOBILE">>, <<"26094">>, <<"0">>]
             }
            ,{<<"\"0.1651\",\"ZAMBIA, MOBILE\",\"ZAMBIA, MOBILE-26094\",\"ZAMBIA, MOBILE\",\"26094\",0">>
-            ,[<<"\"0.1651\"">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"ZAMBIA, MOBILE-26094\"">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"26094\"">>, <<"0">>]
+            ,[<<"0.1651">>, <<"ZAMBIA, MOBILE">>, <<"ZAMBIA, MOBILE-26094">>, <<"ZAMBIA, MOBILE">>, <<"26094">>, <<"0">>]
             }
            ,{<<"0.1651,\"ZAMBIA, MOBILE\",\"ZAMBIA, MOBILE-26094\",\"ZAMBIA, MOBILE\",\"26094\",\"0\"">>
-            ,[<<"0.1651">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"ZAMBIA, MOBILE-26094\"">>, <<"\"ZAMBIA, MOBILE\"">>, <<"\"26094\"">>, <<"\"0\"">>]
+            ,[<<"0.1651">>, <<"ZAMBIA, MOBILE">>, <<"ZAMBIA, MOBILE-26094">>, <<"ZAMBIA, MOBILE">>, <<"26094">>, <<"0">>]
             }
            ,{<<",">>, [<<>>, <<>>]}
            ,{<<"test,">>,[<<"test">>,<<>>]}
