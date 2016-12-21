@@ -26,7 +26,7 @@
 -endif.
 
 -type cell() :: ne_binary() | ?ZILCH.
--type row() :: [cell(), ...].
+-type row() :: [cell()].
 
 -export_type([cell/0
              ,row/0
@@ -139,8 +139,10 @@ split_fields(Row, Fields) ->
 
 -type field_terminator() :: 34 | 39 | 44. %% $" | $' | $,
 
--spec split_field(binary(), field_terminator(), [binary()]) -> [binary()].
--spec split_field(binary(), field_terminator(), [binary()], [byte()]) -> [binary()].
+-spec split_field(binary(), field_terminator(), row()) ->
+                         {row(), binary()}.
+-spec split_field(binary(), field_terminator(), row(), [byte()]) ->
+                         {row(), binary()}.
 split_field(Row, EndChar, Fields) ->
     split_field(Row, EndChar, Fields, []).
 
